@@ -86,4 +86,63 @@ mvt %>% filter(LocationDescription == 'DRIVEWAY - RESIDENTIAL') %>%
   summarise(Observation = n()) %>%
   arrange(desc(Observation))
 
+#Part 2 Stock price
+
+IBM = read.csv('IBMStock.csv')
+GE = read.csv('GEStock.csv')
+ProcterGamble = read.csv('ProcterGambleStock.csv')
+CocaCola = read.csv('CocaColaStock.csv')
+Boeing = read.csv('BoeingStock.csv')
+
+str(IBM)
+
+IBM$Date = mdy(IBM$Date)
+GE$Date = mdy(GE$Date)
+ProcterGamble$Date = mdy(ProcterGamble$Date)
+CocaCola$Date = mdy(CocaCola$Date)
+Boeing$Date = mdy(Boeing$Date)
+
+mean(IBM$StockPrice)
+
+min(GE$StockPrice)
+
+max(CocaCola$StockPrice)
+
+median(Boeing$StockPrice)
+
+sd(ProcterGamble$StockPrice)
+
+CocaCola %>% ggplot(aes(x = Date, y = StockPrice)) + geom_line()
+
+ggplot(CocaCola, aes(x = Date, y = StockPrice)) +
+  geom_line() +
+  geom_line(data = ProcterGamble, aes(x = Date, y = StockPrice), col = 'blue') + 
+  geom_vline(xintercept = ymd('2000-03-01'))
+
+StockPrice = bind_rows('IBM' = IBM, 'GE' = GE, 
+                       'ProcterGamble' = ProcterGamble,
+                       'CocaCola' = CocaCola, 'Boeing' = Boeing, .id = 'Company')
+
+StockPrice$Company = as.factor(StockPrice$Company)
+
+StockPrice %>% ggplot(aes(x = Date, y = StockPrice, col = Company)) + 
+  geom_vline(xintercept = ymd('2000-03-01'), col = 'grey') +
+  geom_vline(xintercept = ymd('1997-09-01'), col = 'grey') +
+  geom_vline(xintercept = ymd('1997-10-01'), col = 'grey') +
+  geom_line()
+
+IBM %>% mutate(Month = month(Date)) %>%
+  group_by(Month) %>%
+  summarise(MonthSP = mean(StockPrice)) %>%
+  filter(MonthSP > mean(IBM$StockPrice))
+
+GE %>% mutate(Month = month(Date)) %>%
+  group_by(Month) %>%
+  summarise(MonthSP = mean(StockPrice)) %>%
+  arrange(desc(MonthSP))
+
+CocaCola %>% mutate(Month = month(Date)) %>%
+  group_by(Month) %>%
+  summarise(MonthSP = mean(StockPrice)) %>%
+  arrange(desc(MonthSP))
 
