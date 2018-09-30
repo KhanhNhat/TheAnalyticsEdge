@@ -86,7 +86,7 @@ mvt %>% filter(LocationDescription == 'DRIVEWAY - RESIDENTIAL') %>%
   summarise(Observation = n()) %>%
   arrange(desc(Observation))
 
-#Part 2 Stock price
+#Part 2: Stock price
 
 IBM = read.csv('IBMStock.csv')
 GE = read.csv('GEStock.csv')
@@ -146,3 +146,129 @@ CocaCola %>% mutate(Month = month(Date)) %>%
   summarise(MonthSP = mean(StockPrice)) %>%
   arrange(desc(MonthSP))
 
+#Part 3: Demographics and Employment in the United States
+CPS = read.csv('CPSData.csv')
+
+sort(table(CPS$Industry))
+
+sort(table(CPS$State))
+
+CPS %>% group_by(Citizenship) %>%
+  summarise(CitizenProportion = n()/nrow(CPS))
+
+CPS %>% group_by(Race) %>%
+  summarise(RaceCounted = sum(Hispanic)) %>%
+  arrange(desc(RaceCounted))
+
+#Find out which variable has NA value
+has_na = function(x){sum(is.na(x)) > 0}
+CPS %>%
+  select_if(CPS, has_na) %>%
+  is.na.data.frame() %>% 
+  colSums()
+
+CPS %>%
+  mutate(married_NA = is.na(Married)) %>%
+  group_by(married_NA, Region) %>%
+  summarise(numofIn = n())
+
+#Two ways to find number of state has NA value
+CPS %>%
+  filter(is.na(MetroAreaCode)) %>%
+  summarise(nState_NA = n_distinct(State))
+
+data.frame(table(CPS$State, is.na(CPS$MetroAreaCode))) %>%
+  filter(Var2 == TRUE, Freq > 0 ) %>%
+  summarise(nState = n())
+
+#When using summarise() and n(), if you want to keep the row that has value = 0
+#You must combine with complete() from tidy package
+#complete() will let this value = NA, so that we use fill argument to fill whatever value we want.
+CPS %>%
+  mutate(NA_AreaCode = is.na(MetroAreaCode)) %>%
+  group_by(NA_AreaCode, State) %>%
+  summarise(numOfInt = n()) %>%
+  complete(State, fill = list(numOfInt = 0)) %>%
+  filter(!NA_AreaCode, numOfInt == 0)
+
+CPS %>%
+  group_by(Region) %>%
+  summarise(ProportionOfNA = mean(is.na(MetroAreaCode)))
+
+CPS %>%
+  group_by(State) %>%
+  summarise(ProportionOfNA = mean(is.na(MetroAreaCode))) %>%
+  filter(ProportionOfNA < 0.35, ProportionOfNA > 0.25) %>%
+  arrange(desc(ProportionOfNA))
+
+CPS %>%
+  group_by(State) %>%
+  summarise(ProportionOfNA = mean(is.na(MetroAreaCode))) %>%
+  arrange(desc(ProportionOfNA))
+
+MetroAreaMap = read.csv('MetroAreaCodes.csv')
+CountryMap = read.csv('CountryCodes.csv')
+
+CPS %>% 
+  count(MetroAreaCode) %>%
+  left_join(MetroAreaMap, by = c('MetroAreaCode' = 'Code')) %>%
+  summarise(numArea = sum(!is.na(MetroArea)))
+
+CPS %>% 
+  count(CountryOfBirthCode) %>%
+  left_join(CountryMap, by = c('CountryOfBirthCode' = 'Code')) %>%
+  summarise(numCountry = sum(!is.na(Country)))
+
+CPS_N = CPS %>%
+  left_join(CountryMap, by = c('CountryOfBirthCode' = 'Code')) %>%
+  left_join(MetroAreaMap, by = c('MetroAreaCode' = 'Code')) %>%
+  glimpse()
+
+#This is the way of MIT
+CPS_MIT = merge(CPS, MetroAreaMap, by.x="MetroAreaCode", by.y="Code", all.x=TRUE)
+summary(CPS_MIT)
+
+CPS_N %>%
+  group_by(MetroArea) %>%
+  summarise(numOfInt = n()) %>%
+  arrange(desc(numOfInt))
+
+CPS_N %>%
+  group_by(MetroArea) %>%
+  summarise(ProportionHis = mean(Hispanic)) %>%
+  arrange(desc(ProportionHis))
+
+CPS_N %>%
+  group_by(MetroArea) %>%
+  summarise(ProportionAsian = mean(Race == 'Asian')) %>%
+  filter(ProportionAsian >= 0.2) %>%
+  arrange(desc(ProportionAsian))
+
+CPS_N %>%
+  count(Country) %>%
+  arrange(desc(n))
+
+CPS_N %>%
+  filter(MetroArea == 'New York-Northern New Jersey-Long Island, NY-NJ-PA', !is.na(Country)) %>%
+  summarise(notUS = mean(CountryOfBirthCode == 57))
+
+CPS_N %>%
+  filter(Country == 'India') %>%
+  count(MetroArea) %>%
+  arrange(desc(n))
+
+CPS_N %>%
+  filter(Country == 'Brazil') %>%
+  count(MetroArea) %>%
+  arrange(desc(n))
+
+CPS_N %>%
+  filter(Country == 'Somalia') %>%
+  count(MetroArea) %>%
+  arrange(desc(n))
+
+CPS_N %>% 
+  group_by(MetroArea) %>%
+  filter(!is.na(Education)) %>%
+  summarise(unEducatedPro = mean(Education == "No high school diploma")) %>%
+  arrange(unEducatedPro)
