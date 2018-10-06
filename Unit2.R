@@ -1,5 +1,6 @@
 library(tidyverse)
 library(ggthemes)
+library(corrplot)
 
 #Quick question Unit2: Wine
 x = c(0, 1, 1)
@@ -67,8 +68,42 @@ win2003 = c(97, 97, 92, 93, 92, 96, 94, 96, 92, 90)
 cor(teamRank, win2002)
 cor(teamRank, win2003)
 
+#Asignment 2.1: Climate change
+climate = read.csv('climate_change.csv')
 
+climateTrain = climate %>% filter(Year <= 2006)
+climateTest = climate %>% filter(Year > 2006)
 
+#Check correlation between variables
+corrplot(cor(climateTrain[-c(1,2)]), method = 'ellipse', type = 'lower')
 
+#Create linear regression model for temperature
+tempLReg = lm(data = climateTrain, Temp ~ MEI + CO2 + CH4 + N2O + CFC.11 + CFC.12 + TSI + Aerosols)
 
+summary(tempLReg)
 
+tempLReg2 = lm(data = climateTrain, Temp ~ MEI + TSI + Aerosols + N2O)
+
+summary(tempLReg2)
+
+tempLRegNull = lm(data = climateTrain, Temp ~ 1)
+
+#Choose best linear model by going backward from full model
+stepTempRegBackward = step(tempLReg)
+
+summary(stepTempRegBackward)
+
+#Choose best linear model by going forward from null model
+stepTempRegForward = step(tempLRegNull,
+                          scope = list(lower = formula(tempLRegNull), upper = formula(tempLReg)),
+                          direction = 'forward')
+
+summary(stepTempRegForward)
+
+#Now, predict with test data
+climateTest$TempPre = predict(stepTempRegBackward, newdata = climateTest)
+head(climateTest)
+SSE = sum((climateTest$Temp - climateTest$TempPre)^2)
+SST = sum((climateTest$Temp - mean(climateTrain$Temp))^2)
+(R2_TestData = 1 - SSE/SST)
+add_predictions(data = climateTest, model = stepTempRegBackward, var = 'modelrPred')
