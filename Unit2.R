@@ -1,6 +1,7 @@
 library(tidyverse)
 library(ggthemes)
 library(corrplot)
+library(lubridate)
 
 #Quick question Unit2: Wine
 x = c(0, 1, 1)
@@ -22,7 +23,6 @@ wine = read.csv('wine.csv')
 pairs(wine[-1])
 
 #Morve visible way
-library(corrplot)
 corrplot(cor(wine[-1]), method = 'ellipse', type = 'lower')
 
 #Find correlation value
@@ -137,5 +137,47 @@ summary(lmScore)
 
 predTest = predict(lmScore, newdata = pisaTest)
 
+#Assignment 2.3
+fluTrain = read.csv('FluTrain.csv')
+fluTrain$Year = year(fluTrain$Week)
+fluTrain$Month = month(fluTrain$Week)
 
+fluTrain %>% filter(ILI == max(ILI))
+fluTrain %>% filter(Queries == max(Queries))
 
+ggplot(data = fluTrain, aes(x = ILI)) + geom_histogram(col = 'white')
+
+ggplot(data = fluTrain, aes(x = log(ILI), y = Queries)) + 
+  geom_point() +
+  geom_smooth(method = 'lm', se = FALSE)
+
+fluTrend1 = lm(data = fluTrain, log(ILI) ~ Queries)
+summary(fluTrend1)
+
+fluTest = read.csv('FluTest.csv')
+
+fluTest$Predict = exp(predict(fluTrend1, newdata = fluTest))
+fluTest$Month = month(fluTest$Week)
+
+fluTest %>% filter(Month == 3)
+
+#We cannot use directly this code: rmse(data = fluTest, model = fluTrend1)
+#Because we made a mode with log(ILI) not with ILI
+sqrt(mean((fluTest$ILI - fluTest$Predict)^2))
+
+#We can use information from 2 weeks ago to predict this week
+#In training dataset, we create a column that store information of two weeks delay
+fluTrain$ILILag2 = c(NA, NA, fluTrain$ILI[-c(416, 417)])
+fluTest$ILILag2 = c(fluTrain$ILI[416], fluTrain$ILI[417], fluTest$ILI[-c(51, 52)])
+
+ggplot(data = fluTrain, aes(x = ILILag2, y = ILI)) + 
+  geom_point() +
+  geom_smooth(method = 'lm', se = FALSE)
+
+fluTrend2 = lm(data = fluTrain, log(ILI) ~ log(ILILag2) + Queries)
+
+summary(fluTrend2)
+
+fluTest$Predict2 = exp(predict(fluTrend2, newdata = fluTest))
+
+sqrt(mean((fluTest$ILI - fluTest$Predict2)^2))
