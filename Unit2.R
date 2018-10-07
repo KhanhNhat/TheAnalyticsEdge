@@ -68,7 +68,7 @@ win2003 = c(97, 97, 92, 93, 92, 96, 94, 96, 92, 90)
 cor(teamRank, win2002)
 cor(teamRank, win2003)
 
-#Asignment 2.1: Climate change
+#Assignment 2.1: Climate change
 climate = read.csv('climate_change.csv')
 
 climateTrain = climate %>% filter(Year <= 2006)
@@ -107,3 +107,35 @@ SSE = sum((climateTest$Temp - climateTest$TempPre)^2)
 SST = sum((climateTest$Temp - mean(climateTrain$Temp))^2)
 (R2_TestData = 1 - SSE/SST)
 add_predictions(data = climateTest, model = stepTempRegBackward, var = 'modelrPred')
+
+
+#Assignment 2.2
+
+pisaTrain = read.csv('pisa2009train.csv')
+pisaTest = read.csv('pisa2009test.csv')
+
+pisaTrain %>%
+  group_by(male) %>%
+  summarise(AverageReading = mean(readingScore))
+
+#We use has_na function from Unit1.R to find which variable has NA value
+select_if(pisaTrain, has_na) %>%
+  is.na.data.frame() %>%
+  colSums()
+
+#Remove all observations have NA values
+pisaTrain = na.omit(pisaTrain)
+pisaTest = na.omit(pisaTest)
+
+#Relevel the factor variable raceeth, make 'White' become the first and use it as reference level
+pisaTrain$raceeth = relevel(pisaTrain$raceeth, 'White')
+pisaTest$raceeth = relevel(pisaTest$raceeth, 'White')
+
+lmScore = lm(data = pisaTrain, readingScore ~ .)
+
+summary(lmScore)
+
+predTest = predict(lmScore, newdata = pisaTest)
+
+
+
