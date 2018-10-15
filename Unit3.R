@@ -50,4 +50,24 @@ ROC_perf_test = performance(ROC_pred_test, 'auc')
 #Use @ to extract a slot inside ROC_perf_test
 as.numeric(ROC_perf_test@y.values)
 
+#Unit 3: Quick question about Framingham Study
+framingham = read.csv('framingham.csv')
+
+set.seed(1000)
+split = sample.split(framingham$TenYearCHD, SplitRatio = 0.65)
+train = framingham[split,]
+test = framingham[!split,]
+
+framinghamLogReg = glm(TenYearCHD ~ ., data = train, family = 'binomial')
+
+test$Pred = predict(framinghamLogReg, newdata = test, type = 'response')
+
+colAUC(test$Pred, test$TenYearCHD, plotROC = TRUE)
+
+test_pred = prediction(test$Pred, test$TenYearCHD)
+as.numeric(performance(test_pred, 'auc')@y.values)
+
+
+
+
 
