@@ -67,6 +67,55 @@ colAUC(test$Pred, test$TenYearCHD, plotROC = TRUE)
 test_pred = prediction(test$Pred, test$TenYearCHD)
 as.numeric(performance(test_pred, 'auc')@y.values)
 
+#Assignment 3.1
+
+songs = read.csv('songs.csv')
+
+songs %>% filter(year == 2010) %>% summarise(songIn2010 = n())
+
+songs %>% filter(artistname == 'Michael Jackson') %>% summarise(numOfMJ = n())
+
+songs %>% filter(artistname == 'Michael Jackson' & Top10 == 1) %>% select(songtitle)
+
+songs %>% group_by(timesignature) %>% summarise(numOfObservations = n())
+
+songs %>% filter(tempo == max(tempo)) %>% select(songtitle)
+
+#Make training and testing data
+#Only keep variable that has meaning to build model
+
+songsTrain = songs %>% filter(year <= 2009)
+nrow(songsTrain)
+songsTrain = songsTrain[,-c(1,2,3,4,5)]
+
+songsTest = songs %>% filter(year > 2009)
+songsTest = songsTest[,-c(1,2,3,4,5)]
+
+#Create a first model
+Model1 = glm(Top10 ~ ., data = songsTrain, family = 'binomial')
+summary(Model1)
+
+songLogReg2 = glm(Top10 ~ . - loudness, data = songsTrain, family = 'binomial')
+summary(songLogReg2)
+
+songLogReg3 = glm(Top10 ~ . - energy, data = songsTrain, family = 'binomial')
+summary(songLogReg3)
+
+songsTest$Prob = predict(songLogReg3, newdata = songsTest, type = 'response')
+songsTest$Pred = ifelse(songsTest$Prob < 0.45, 0, 1)
+
+#Create a refusion matrix
+songsTest %>% group_by(Top10) %>% summarise(predictNo = sum(Pred == 0),
+                                            predictYes = sum(Pred == 1))
+
+
+
+
+
+
+
+
+
 
 
 
