@@ -108,15 +108,44 @@ songsTest$Pred = ifelse(songsTest$Prob < 0.45, 0, 1)
 songsTest %>% group_by(Top10) %>% summarise(predictNo = sum(Pred == 0),
                                             predictYes = sum(Pred == 1))
 
+#Assignment 3.2
+parole = read.csv('parole.csv')
 
+sum(parole$violator == 1)
 
+#Convert state and crime variables to factor
+parole$state = as.factor(parole$state)
+parole$crime = as.factor(parole$crime)
 
+summary(parole)
 
+#Now split data to training and testing, then build a logistic regression model
+set.seed(144)
+split = sample.split(parole$violator, SplitRatio = 0.7)
 
+paroleTrain = parole[split,]
+paroleTest = parole[!split,]
 
+paroleLogReg = glm(violator ~ ., data = paroleTrain, family = 'binomial')
 
+summary(paroleLogReg)
 
+specificTest = parole[1,]
+specificTest = add_row(specificTest, male = 1, race = 1, age = 50, state = 1, time.served = 3,
+                      max.sentence = 12, multiple.offenses = 0, crime = 2, violator = 0)
 
+#We have formula to calculate Odds from probability p
+#Odds = p/(1 - p)
 
+paroleTest$Prob = predict(paroleLogReg, newdata = paroleTest, type = 'response')
 
+max(paroleTest$Prob)
+
+paroleTest$Pred = ifelse(paroleTest$Prob < 0.5, 0, 1)
+
+#Create a refusion matrix
+paroleTest %>% group_by(violator) %>% summarise(predictNo = sum(Pred == 0), predictYes = sum(Pred == 1))
+
+parole_test_pred = prediction(paroleTest$Prob, paroleTest$violator)
+as.numeric(performance(parole_test_pred, 'auc')@y.values)
 
