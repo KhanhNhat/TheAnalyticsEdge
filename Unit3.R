@@ -149,3 +149,79 @@ paroleTest %>% group_by(violator) %>% summarise(predictNo = sum(Pred == 0), pred
 parole_test_pred = prediction(paroleTest$Prob, paroleTest$violator)
 as.numeric(performance(parole_test_pred, 'auc')@y.values)
 
+#Assignment 3.3
+loans = read.csv('loans.csv')
+
+mean(loans$not.fully.paid)
+
+loans %>% select_if(loans, has_na) %>%
+  is.na.data.frame() %>% 
+  colSums()
+
+loans_imputed = read.csv('loans_imputed.csv')
+
+set.seed(144)
+
+split = sample.split(loans_imputed$not.fully.paid, SplitRatio = 0.7)
+
+loanImputedTrain = loans_imputed[split, ]
+loanImputedTest = loans_imputed[!split, ]
+
+loanImputedLogReg = glm(not.fully.paid ~ ., data = loanImputedTrain, family = 'binomial')
+
+summary(loanImputedLogReg)
+
+loanImputedTest$Prob = predict(loanImputedLogReg, newdata = loanImputedTest, type = 'response')
+loanImputedTest$Pred = ifelse(loanImputedTest$Prob < 0.5, 0, 1)
+
+loanImputedTest %>% group_by(not.fully.paid) %>%
+                    summarise(predictNo = sum(Pred == 0), predictYes = sum(Pred == 1))
+
+loan_test_pred = prediction(loanImputedTest$Prob, loanImputedTest$not.fully.paid)
+as.numeric(performance(loan_test_pred, 'auc')@y.values)
+
+#Create a bivariate model
+loan_biLogReg = glm(not.fully.paid ~ int.rate, data = loanImputedTrain, family = 'binomial')
+
+loanImputedTest$Prob2 = predict(loan_biLogReg, newdata = loanImputedTest, type = 'response')
+loanImputedTest$Pred2 = ifelse(loanImputedTest$Prob2 < 0.5, 0, 1)
+
+#Find the highest probability of not full payment with the second model
+max(loanImputedTest$Prob2)
+
+#Create a refusion matrix for the second model
+loanImputedTest %>% group_by(not.fully.paid) %>%
+  summarise(predictNo = sum(Pred2 == 0), predictYes = sum(Pred2 == 1))
+
+loan_bi_pred = prediction(loanImputedTest$Prob2, loanImputedTest$not.fully.paid)
+as.numeric(performance(loan_bi_pred, 'auc')@y.values)
+
+#Create a profit variable
+loanImputedTest$profit = exp(loanImputedTest$int.rate * 3) - 1
+loanImputedTest$profit[loanImputedTest$not.fully.paid == 1] = -1
+
+#Find the highest profit
+max(loanImputedTest$profit)
+
+#Create a dataset with only high interest rate, equal or large than 15%
+hightRateLoans = loanImputedTest %>% filter(int.rate >= 0.15)
+
+#Average profit with this high interest rate
+mean(hightRateLoans$profit)
+
+#Proportion of not full payment
+mean(hightRateLoans$not.fully.paid == 1)
+
+#Sort by predicted probability of unpayment from the first model
+hightRateLoans = hightRateLoans %>% arrange(Prob)
+
+#Get 100 of smallest probability of unpayment
+selectedLoan = hightRateLoans[seq(1, 100, 1),]
+
+#Find the total of proit
+sum(selectedLoan$profit)
+
+#Find how many case of unpayment
+sum(selectedLoan$not.fully.paid == 1)
+
+min(hightRateLoans$Prob2)
