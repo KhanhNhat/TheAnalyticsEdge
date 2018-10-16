@@ -154,7 +154,15 @@ loans = read.csv('loans.csv')
 
 mean(loans$not.fully.paid)
 
-loans %>% select_if(loans, has_na) %>%
+#Find out which variable has NA value
+#has_na return TRUE if vector x has NA value
+has_na = function(x){sum(is.na(x)) > 0}
+
+#First just select only the variables that have NA value
+#Convert this dataset to a dataset with only TRUE/FALSE value
+#TRUE at NA position, FALSE at other case.
+#Make a column sum to find how many NA in this variable.
+select_if(loans, has_na) %>%
   is.na.data.frame() %>% 
   colSums()
 
