@@ -1,4 +1,5 @@
 library(tidyverse)
+library(caret)
 
 movies = read_delim('movies.txt', delim = '|',
                     col_names = c('ID', 'Title', 'ReleaseDate', 'VideoReleaseDate', 'IMDB',
@@ -114,8 +115,44 @@ clusterSummary %>% map_dbl(~sum(.x == kmSummary$V7))
 
 clusterSummary %>% map_dbl(~sum(.x == kmSummary$V6))
 
+#Assignment 2.
+airlines = read_csv('AirlinesCluster.csv')
 
+summary(airlines)
 
+#Use caret package to normalize data before process
+preproc = preProcess(airlines)              #Create a model to preprocess
+airlinesNorm = predict(preproc, airlines)   #Performance normalizing data
 
+#Now, all variable have mean = 0, standard deviation = 1
+summary(airlinesNorm)
 
+airlines_dist = dist(airlinesNorm)
+airlines_hc = hclust(airlines_dist, method = 'ward.D')
+
+plot(color_branches(as.dendrogram(airlines_hc), k = 5))
+
+air_hc5 = cutree(airlines_hc, k = 5)
+
+#How many observation in each cluster
+airlinesNorm %>% mutate(cluster = air_hc5) %>%
+                 group_by(cluster) %>%
+                 summarise(NumObservations = n())
+
+#Calculate average variables for each cluster
+airlinesNorm %>% mutate(cluster = air_hc5) %>%
+                 group_by(cluster) %>%
+                 summarise_all(.funs = mean)
+
+#Now, try with kmeans()
+set.seed(88)
+airlines_km = kmeans(airlinesNorm, centers = 5, iter.max = 1000)
+
+airlinesNorm %>% mutate(cluster = airlines_km$cluster) %>%
+                 group_by(cluster) %>%
+                 summarise(NumObservation = n())
+
+airlinesNorm %>% mutate(cluster = airlines_km$cluster) %>%
+                 group_by(cluster) %>%
+                 summarise_all(.funs = mean)
 
