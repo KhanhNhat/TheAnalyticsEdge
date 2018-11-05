@@ -156,3 +156,117 @@ airlinesNorm %>% mutate(cluster = airlines_km$cluster) %>%
                  group_by(cluster) %>%
                  summarise_all(.funs = mean)
 
+#Assignment 3
+stocks = read_csv('StocksCluster.csv')
+
+stocks %>% filter(PositiveDec == 1) %>%
+           summarise(NumPosDec = n())
+
+library(corrplot)
+corrplot(cor(stocks[,-12]), method = 'ellipse', type = 'lower')
+cor(stocks[, -12])
+
+stocks %>% summarise_all(.funs = mean) %>% glimpse(.)
+
+library(caTools)
+
+set.seed(144)
+split = sample.split(stocks$PositiveDec, SplitRatio = 0.7)
+
+stocksTrain = stocks[split, ]
+stocksTest = stocks[!split, ]
+
+stockLR = glm(PositiveDec ~ ., data = stocksTrain, family = 'binomial')
+
+#The accuracy with training dataset
+stocksTrain$probLR = predict(stockLR, type = 'response')
+stocksTrain$predLR = ifelse(stocksTrain$probLR < 0.5, 0, 1)
+
+mean(stocksTrain$PositiveDec == stocksTrain$predLR)
+
+#The accuracy with testing dataset
+stocksTest$probLR = predict(stockLR, newdata = stocksTest, type = 'response')
+stocksTest$predLR = ifelse(stocksTest$probLR < 0.5, 0, 1)
+
+mean(stocksTest$PositiveDec == stocksTest$predLR)
+
+#The accuracy of base line when we only predict value =1
+mean(stocksTest$PositiveDec == 1)
+
+#Now, do clustering before building a model
+
+#First, remove dependent variable
+stocksTrain = stocks[split, ]     #Do these tasks again to make sure data are clean.
+stocksTest = stocks[!split, ]
+
+limitedTrain = stocksTrain %>% select(-12)
+limitedTest = stocksTest %>% select(-12)
+
+#Then normalize the data
+preproc = preProcess(limitedTrain)  #Calculate mean, standard deviation
+trainNorm = predict(preproc, newdata = limitedTrain) #Do normalizing data
+testNorm = predict(preproc, newdata = limitedTest)
+
+#Check the mean in normalized dataset
+#Mean in testing dataset is not as close as training dataset
+#Because their distribution are not the same and we built the model base on training dataset
+mean(trainNorm$ReturnJan)
+mean(testNorm$ReturnJan)
+
+#Build kmeans
+set.seed(144)
+stocks_km = kmeans(trainNorm, centers = 3, iter.max = 1000)
+
+trainNorm %>% mutate(cluster = stocks_km$cluster) %>%
+              group_by(cluster) %>%
+              summarise(NumObservations = n())
+
+
+library(flexclust)
+
+stocks_km_kcca = as.kcca(stocks_km, trainNorm)
+
+train_cluster_kcca = predict(stocks_km_kcca)
+test_cluster_kcca = predict(stocks_km_kcca, newdata = testNorm)
+
+testNorm %>% mutate(cluster_kcca = test_cluster_kcca) %>%
+             group_by(cluster_kcca) %>%
+             summarise(NumObservation = n())
+
+stocksTrain1 = stocksTrain[train_cluster_kcca == 1, ]
+stocksTrain2 = stocksTrain[train_cluster_kcca == 2, ]
+stocksTrain3 = stocksTrain[train_cluster_kcca == 3, ]
+
+stocksTrain %>% mutate(cluster = train_cluster_kcca)
+                group_by(cluster) %>%
+                summarise(MeanDependent = mean(PositiveDec))
+
+LR1 = glm(PositiveDec ~ ., data = stocksTrain1, family = 'binomial')
+LR2 = glm(PositiveDec ~ ., data = stocksTrain2, family = 'binomial')
+LR3 = glm(PositiveDec ~ ., data = stocksTrain3, family = 'binomial')
+
+coef_df = data.frame(LR1 = LR1$coefficients, LR2 = LR2$coefficients, LR3 = LR3$coefficients)
+
+coef_df %>% rownames_to_column(var = 'Month') %>% 
+            filter((LR1 > 0 | LR2 > 0 | LR3 >0) & (LR1 < 0 | LR2 < 0 | LR3 < 0))
+
+stocksTest1 = stocksTest[test_cluster_kcca == 1, ]
+stocksTest2 = stocksTest[test_cluster_kcca == 2, ]
+stocksTest3 = stocksTest[test_cluster_kcca == 3, ]
+
+stocksTest1$prob = predict(LR1, newdata = stocksTest1, type = 'response')
+stocksTest1$pred = ifelse(stocksTest1$prob < 0.5, 0, 1)
+mean(stocksTest1$PositiveDec == stocksTest1$pred)
+
+stocksTest2$prob = predict(LR2, newdata = stocksTest2, type = 'response')
+stocksTest2$pred = ifelse(stocksTest2$prob < 0.5, 0, 1)
+mean(stocksTest2$PositiveDec == stocksTest2$pred)
+
+stocksTest3$prob = predict(LR3, newdata = stocksTest3, type = 'response')
+stocksTest3$pred = ifelse(stocksTest3$prob < 0.5, 0, 1)
+mean(stocksTest3$PositiveDec == stocksTest3$pred)
+
+allPredict = c(stocksTest1$pred, stocksTest2$pred, stocksTest3$pred)
+allTrueValue = c(stocksTest1$PositiveDec, stocksTest2$PositiveDec, stocksTest3$PositiveDec)
+
+mean(allPredict == allTrueValue)
