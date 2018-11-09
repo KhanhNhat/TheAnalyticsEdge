@@ -270,3 +270,49 @@ allPredict = c(stocksTest1$pred, stocksTest2$pred, stocksTest3$pred)
 allTrueValue = c(stocksTest1$PositiveDec, stocksTest2$PositiveDec, stocksTest3$PositiveDec)
 
 mean(allPredict == allTrueValue)
+
+#More practice with kmeans
+#Get dataset of line up position of 2 soccer teams.
+#Use kmeans to identify players for each team.
+#With kmeans() function we can easily to create model
+#Hold on a second, how can we choose k = ? if we don't know there are 2 teams on the field?
+
+#First method, use your eyes with scree plot
+
+totalWithin = map_dbl(1:10, function(k) {
+                              model = kmeans(lineup, centers = k)
+                              model$tot.withinss
+                            })
+totalWithinDf = data.frame(k = 1:10, totalWithin)
+
+ggplot(totalWithinDf, aes(x = k, y = totalWithin)) +
+  geom_point(col = 'blue', size = 2) +
+  geom_line() +
+  ylab('Total within Sum of Square Error') +
+  xlab('Num of cluster') +
+  scale_x_continuous(breaks = 1:10)
+
+#We can see that, in this case, k is good from 2:6
+#Because of 2 teams, so we get k = 2
+
+#Now, try the second way with 'cluster' package: Silhouette Analysis
+library(cluster)
+
+#Create a vector that store average Silhouette width of k from 2 to 10
+sihouetteWidths = map_dbl(2:10, function(k){
+                                  pamk = pam(lineup, k = k)
+                                  pamk$silinfo$avg.width
+                                })
+
+sihouetteWidthDF = data.frame(k = 2:10, sihouetteWidths)
+
+ggplot(sihouetteWidthDF, aes(x = k, y = sihouetteWidths)) +
+  geom_point(col = 'red', size = 2) +
+  geom_line(col = 'blue') +
+  xlab('Num of cluster') +
+  scale_x_continuous(breaks = 2:10) +
+  ylab('Average Sihouette Width')
+
+#Choose the model that has highest Average Silhouette Width, k = 2
+#In this case, choose by Silhouette is more clearlier than Elbow Analysis.
+
